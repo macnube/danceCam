@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Route } from 'react-router-dom';
 import logo from './logo.svg';
 import './App.css';
 
-import { Home, SegmentCreator, SegmentPlayer } from './routes';
+import { Home, Recorder, SegmentCreator, SegmentPlayer } from './routes';
 
 class App extends Component {
     render() {
@@ -11,6 +11,7 @@ class App extends Component {
             <Router>
                 <div className="App">
                     <Route exact path="/" component={Home} />
+                    <Route exact path="/recorder" component={Recorder} />
                     <Route exact path="/creator" component={SegmentCreator} />
                     <Route exact path="/player" component={SegmentPlayer} />
                 </div>

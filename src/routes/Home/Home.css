@@ -20,17 +20,19 @@
     background-repeat: no-repeat;
     background-size: cover;
     display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
-.button-container {
+.home-button-container {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    align-self: center;
-    justify-content: center;
+    height: 150px;
+    justify-content: space-around;
 }
 
-button {
+.button {
     margin-bottom: 50px;
     height: 100px;
     background-color: transparent;

@@ -1,0 +1,23 @@
+.recorder-button-container {
+    display: flex;
+    flex-direction: row;
+    width: 70%;
+    height: 40px;
+    justify-content: space-around;
+    align-items: flex-end;
+}
+
+.playback-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: flex-end;
+}
+
+.hide {
+    display: none;
+}
+
+.play-window-input {
+    width: 30%;
+}
