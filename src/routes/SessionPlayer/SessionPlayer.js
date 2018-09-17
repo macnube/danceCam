@@ -11,14 +11,13 @@ const YouTubePlayerState = {
 };
 
 
-export default class SegmentPlayer extends React.Component {
+export default class SessionPlayer extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
       player: null,
       playerAvailablePlaybackRates: [1],
-
-      segments: this.props.location.state.segments,
+      segments: this.props.segments,
       segmentIndex: 0,
     }
   }
@@ -40,8 +39,8 @@ export default class SegmentPlayer extends React.Component {
 
     this.state.player.loadVideoById({
       videoId: segment.videoId,
-      startSeconds: segment.start,
-      endSeconds: segment.end
+      startSeconds: segment.startTime,
+      endSeconds: segment.endTime
     });    
   }
 
@@ -82,8 +81,8 @@ export default class SegmentPlayer extends React.Component {
 
     const youtubePlayerOpts = {
       playerVars: {
-        start: segment.start,
-        end: segment.end,
+        start: segment.startTime,
+        end: segment.endTime,
         controls: 0,
         autoplay: 1,
         rel: 0
