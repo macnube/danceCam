@@ -1,4 +1,3 @@
-import { uniqueId } from 'lodash';
 import React from 'react';
 import Modal from 'react-modal';
 import { Link } from 'react-router-dom';
@@ -28,7 +27,7 @@ const modalStyles = {
     },
 };
 
-class SegmentCreator extends React.Component {
+class SessionCreator extends React.Component {
     constructor(props) {
         super(props);
         this.setSegmentTimeButton = null;
@@ -53,7 +52,6 @@ class SegmentCreator extends React.Component {
 
     setInputState = name => {
         return event => {
-            console.log(`${name}: ${event.target.value}`);
             this.setState({
                 [name]: event.target.value,
             });
@@ -87,11 +85,10 @@ class SegmentCreator extends React.Component {
                 segments: {
                     $push: [
                         {
-                            id: uniqueId(),
                             name: this.state.segmentName,
                             videoId: this.state.videoId,
-                            start: Math.round(this.state.segmentStart),
-                            end: Math.round(this.state.segmentEnd),
+                            startTime: Math.round(this.state.segmentStart),
+                            endTime: Math.round(this.state.segmentEnd),
                         },
                     ],
                 },
@@ -134,7 +131,6 @@ class SegmentCreator extends React.Component {
     };
 
     onPlayerReady = event => {
-        console.log('onPlayerReady', event);
         this.setState({
             player: event.target,
         });
@@ -158,8 +154,6 @@ class SegmentCreator extends React.Component {
     };
 
     deleteSegmentCard = index => {
-        console.log('deleting card index', index);
-        console.log('segments', this.state.segments);
         this.setState(
             update(this.state, {
                 segments: {
@@ -168,6 +162,18 @@ class SegmentCreator extends React.Component {
             })
         );
     };
+
+    createSession = () => {
+        this.props.createSession({
+            variables: {
+                data: {
+                    segments: {
+                        create: this.state.segments
+                    }
+                }
+            }
+        })
+    }
 
     render() {
         const {
@@ -225,19 +231,10 @@ class SegmentCreator extends React.Component {
                         <input type="submit" value="Submit" />
                     </form>
                 </Modal>
-                <Link
-                    to={{
-                        pathname: '/player',
-                        state: {
-                            segments: this.state.segments,
-                        },
-                    }}
-                >
-                    GO DANCE
-                </Link>
+                <button onClick={this.createSession} disabled={this.state.segments.length < 1}>Create Session</button>
             </div>
         );
     }
 }
 
-export default DragDropContext(HTML5Backend)(SegmentCreator);
+export default DragDropContext(HTML5Backend)(SessionCreator);
