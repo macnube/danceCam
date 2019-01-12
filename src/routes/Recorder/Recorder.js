@@ -1,12 +1,5 @@
 import React, { Component } from 'react';
-import {
-    Grid,
-    Row,
-    Col,
-    Button,
-    FormGroup,
-    FormControl,
-} from 'react-bootstrap';
+import { Grid, Row, Col, Button, FormControl } from 'react-bootstrap';
 import Webcam from 'react-webcam';
 import { Player, ControlBar, PlaybackRateMenuButton } from 'video-react';
 
@@ -95,8 +88,10 @@ export default class Recorder extends Component {
         }
     };
 
+    // The first blob of the media stream has additional metadata which means
+    // we need to stop and start the mediaRecorder in order to play two separate
+    // videos.
     toggleAndStore = () => {
-        console.log('storing currentBlobs');
         this.mediaRecorder.stop();
         this.lastBlobs = [...this.currentBlobs];
         this.currentBlobs = [];

@@ -168,12 +168,12 @@ class SessionCreator extends React.Component {
             variables: {
                 data: {
                     segments: {
-                        create: this.state.segments
-                    }
-                }
-            }
-        })
-    }
+                        create: this.state.segments,
+                    },
+                },
+            },
+        });
+    };
 
     render() {
         const {
@@ -231,7 +231,22 @@ class SessionCreator extends React.Component {
                         <input type="submit" value="Submit" />
                     </form>
                 </Modal>
-                <button onClick={this.createSession} disabled={this.state.segments.length < 1}>Create Session</button>
+                <button
+                    onClick={this.createSession}
+                    disabled={this.state.segments.length < 1}
+                >
+                    Save Segments
+                </button>
+                {this.props.success ? <h3>Save Successful</h3> : null}
+                {this.props.sessionId ? (
+                    <Link
+                        to={{
+                            pathname: `/player/${this.props.sessionId}`,
+                        }}
+                    >
+                        <button>Practice these segments</button>
+                    </Link>
+                ) : null}
             </div>
         );
     }
