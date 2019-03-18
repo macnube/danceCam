@@ -1,0 +1,21 @@
+{
+"parser": "babel-eslint",
+"globals": {
+    "console": "readonly",
+    "MediaRecorder": "readonly",
+    "XMLHttpRequest": "readonly",
+    "setTimeout": "readonly",
+    "Blob": "readonly"
+},
+"extends": ["eslint:recommended", "plugin:react/recommended"],
+"parserOptions": {
+        "ecmaVersion": 6,
+        "sourceType": "module",
+        "ecmaFeatures": {
+            "jsx": true
+        }
+    },
+    "rules": {
+        "semi": "error"
+    }
+}

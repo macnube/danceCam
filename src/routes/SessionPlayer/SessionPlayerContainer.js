@@ -18,16 +18,20 @@ const GET_SESSION = gql`
     }
 `;
 
-export default ({ match }) => (
+const SessionPlayerContainer = ({ match }) => (
     <Query query={GET_SESSION} variables={{ id: match.params.sessionId }}>
         {({ loading, error, data }) => {
             if (loading) return null;
             if (error) return `Error: ${error}`;
             if (!data.session) return `404: Session not found`;
-            if (data.session.segments.length === 0)
+            if (data.session.segments.length === 0) {
+                console.log('data is: ', data);
                 return `Error: Session has no segments. Please create one with segments or handle this error more gracefully`;
+            }
 
             return <SessionPlayer segments={data.session.segments} />;
         }}
     </Query>
 );
+
+export default SessionPlayerContainer;

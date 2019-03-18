@@ -2,6 +2,9 @@ import React, { Component } from 'react';
 import { Grid, Row, Col, Button, FormControl } from 'react-bootstrap';
 import Webcam from 'react-webcam';
 import { Player, ControlBar, PlaybackRateMenuButton } from 'video-react';
+import GoogleLogin from 'react-google-login';
+import UploadVideo from './UploadVideo';
+import 'video-react/dist/video-react.css';
 
 import './Recorder.css';
 
@@ -52,8 +55,15 @@ export default class Recorder extends Component {
             return null;
         }
         try {
-            var options = { mimeType: 'video/webm', bitsPerSecond: 1000000 };
+            var options = {
+                mimeType: 'video/webm',
+                videoBitsPerSecond: 2500000,
+            };
             this.mediaRecorder = new MediaRecorder(this.webcam.stream, options);
+            console.log(
+                'supported types',
+                MediaRecorder.isTypeSupported('video/webm')
+            );
             console.log('success!');
         } catch (e) {
             console.log(
@@ -105,12 +115,12 @@ export default class Recorder extends Component {
 
     handleDownload = buttonNumber => {
         const blobs = buttonNumber === 1 ? this.lastBlobs : this.currentBlobs;
-        const blob = new Blob(blobs, { type: 'video/mp4' });
+        const blob = new Blob(blobs, { type: 'video/webm' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = 'test.mp4';
+        a.download = 'test.webm';
         document.body.appendChild(a);
         a.click();
         setTimeout(function() {
@@ -149,7 +159,7 @@ export default class Recorder extends Component {
                 <Col md={4} mdOffset={2}>
                     {playerOneUrl ? (
                         <Player fluid src={playerOneUrl}>
-                            <ControlBar autoHide={false}>
+                            <ControlBar autoHide={true}>
                                 <PlaybackRateMenuButton
                                     rates={[5, 3, 1.5, 1, 0.5, 0.1]}
                                     order={7.1}
@@ -180,8 +190,8 @@ export default class Recorder extends Component {
 
     render() {
         const videoConstraints = {
-            width: 1280,
-            height: 720,
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
             facingMode: 'user',
         };
 
@@ -192,8 +202,7 @@ export default class Recorder extends Component {
                 <Row className={this.shouldHideWebcam() ? 'hide' : ''}>
                     <Col md={4} mdOffset={4}>
                         <Webcam
-                            height={350}
-                            audio={false}
+                            audio={true}
                             ref={this.setRef}
                             videoConstraints={videoConstraints}
                         />
@@ -248,6 +257,10 @@ export default class Recorder extends Component {
                         >
                             Download #2
                         </Button>
+                        <UploadVideo
+                            blobs={this.currentBlobs}
+                            accessToken={this.state.googleAccessToken}
+                        />
                     </Col>
                 </Row>
                 <Row />
