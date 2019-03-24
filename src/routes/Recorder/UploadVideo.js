@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Button } from 'react-bootstrap';
+import { Button, ProgressBar } from 'react-bootstrap';
 import Modal from 'react-modal';
 import GoogleLogin from 'react-google-login';
 import MediaUploader from './GoogleMediaUploader';
@@ -32,13 +32,10 @@ export default class UploadVideo extends Component {
             modalIsOpen: false,
             title: '',
             description: '',
-            modalError: null,
+            modalMessage: null,
+            downloadProgress: 0,
         };
     }
-
-    onPress = () => {
-        this.openModal();
-    };
 
     openModal = () => {
         this.setState({
@@ -46,19 +43,21 @@ export default class UploadVideo extends Component {
         });
     };
 
-    closeModal = event => {
+    loadProgress = event => {
         event.preventDefault();
 
         if (!this.state.title) {
             return this.setState({
-                modalError: 'Name your video',
+                modalMessage: 'Name your video',
+                downloadProgress: {
+                    $set: 0,
+                },
             });
         }
 
         this.setState(
             update(this.state, {
-                modalError: { $set: null },
-                modalIsOpen: { $set: false },
+                modalMessage: { $set: null },
                 title: { $set: this.state.title },
                 description: { $set: this.state.description },
             })
@@ -71,60 +70,83 @@ export default class UploadVideo extends Component {
         this.uploadFile(blob);
     };
 
-    pollForVideoStatus = () => {
-        window.gapi.client.request({
-            path: '/youtube/v3/videos',
-            params: {
-                part: 'status,player',
-                id: this.videoId,
-            },
-            callback: function(response) {
-                if (response.error) {
-                    // The status polling failed.
-                    console.log(response.error.message);
-                    setTimeout(
-                        this.pollForVideoStatus.bind(this),
-                        STATUS_POLLING_INTERVAL_MILLIS
-                    );
-                } else {
-                    var uploadStatus = response.items[0].status.uploadStatus;
-                    switch (uploadStatus) {
-                        // This is a non-final status, so we need to poll again.
-                        case 'uploaded':
-                            // $('#post-upload-status').append(
-                            //     '<li>Upload status: ' + uploadStatus + '</li>'
-                            // );
-                            console.log('case uploaded: ', uploadStatus);
-                            setTimeout(
-                                this.pollForVideoStatus.bind(this),
-                                STATUS_POLLING_INTERVAL_MILLIS
-                            );
-                            break;
-                        // The video was successfully transcoded and is available.
-                        case 'processed':
-                            // $('#player').append(
-                            //     response.items[0].player.embedHtml
-                            // );
-                            // $('#post-upload-status').append(
-                            //     '<li>Final status.</li>'
-                            // );
-                            console.log(
-                                'The video was successfully transcoded and is available.'
-                            );
-                            break;
-                        // All other statuses indicate a permanent transcoding failure.
-                        default:
-                            // $('#post-upload-status').append(
-                            //     '<li>Transcoding failed.</li>'
-                            // );
-                            console.log(
-                                'All other statuses indicate a permanent transcoding failure.'
-                            );
-                            break;
-                    }
-                }
-            }.bind(this),
+    closeModal = event => {
+        event.preventDefault();
+        setTimeout(1000, () => {
+            this.setState(
+                update(this.state, {
+                    modalMessage: { $set: null },
+                    modalIsOpen: { $set: false },
+                    downloadProgress: {
+                        $set: 0,
+                    },
+                })
+            );
         });
+    };
+
+    pollForVideoStatus = () => {
+        window.gapi.client &&
+            window.gapi.client.request({
+                path: '/youtube/v3/videos',
+                params: {
+                    part: 'status,player',
+                    id: this.videoId,
+                },
+                callback: function(response) {
+                    if (response.error) {
+                        // The status polling failed.
+                        console.log(response.error.message);
+                        setTimeout(
+                            this.pollForVideoStatus.bind(this),
+                            STATUS_POLLING_INTERVAL_MILLIS
+                        );
+                    } else {
+                        var uploadStatus =
+                            response.items[0].status.uploadStatus;
+                        switch (uploadStatus) {
+                            // This is a non-final status, so we need to poll again.
+                            case 'uploaded':
+                                console.log('case uploaded: ', uploadStatus);
+                                setTimeout(
+                                    this.pollForVideoStatus.bind(this),
+                                    STATUS_POLLING_INTERVAL_MILLIS
+                                );
+                                break;
+                            // The video was successfully transcoded and is available.
+                            case 'processed':
+                                this.setState(
+                                    update(this.state, {
+                                        modalMessage: {
+                                            $set:
+                                                'Video successfully transcoded and available',
+                                        },
+                                        downloadProgress: {
+                                            $set: 0,
+                                        },
+                                    })
+                                );
+                                this.closeModal();
+                                break;
+                            // All other statuses indicate a permanent transcoding failure.
+                            default:
+                                this.setState(
+                                    update(this.state, {
+                                        modalMessage: {
+                                            $set:
+                                                'Unknown error during transcoding, please try again',
+                                        },
+                                        downloadProgress: {
+                                            $set: 0,
+                                        },
+                                    })
+                                );
+                                this.closeModal();
+                                break;
+                        }
+                    }
+                }.bind(this),
+            });
     };
 
     uploadFile = file => {
@@ -162,30 +184,27 @@ export default class UploadVideo extends Component {
                 }
             }.bind(this),
             onProgress: function(data) {
-                var currentTime = Date.now();
                 var bytesUploaded = data.loaded;
                 var totalBytes = data.total;
                 // The times are in millis, so we need to divide by 1000 to get seconds.
-                var bytesPerSecond =
-                    bytesUploaded /
-                    ((currentTime - this.uploadStartTime) / 1000);
-                var estimatedSecondsRemaining =
-                    (totalBytes - bytesUploaded) / bytesPerSecond;
-                var percentageComplete = (bytesUploaded * 100) / totalBytes;
-
-                console.log(
-                    'upload progress - bytesUploaded: ',
-                    bytesUploaded,
-                    'max',
-                    totalBytes,
-                    'percentageComplete: ',
-                    percentageComplete
+                var percentageComplete = Math.round(
+                    (bytesUploaded * 100) / totalBytes
+                );
+                return this.setState(
+                    update(this.state, {
+                        downloadProgress: { $set: percentageComplete },
+                    })
                 );
             }.bind(this),
             onComplete: function(data) {
                 var uploadResponse = JSON.parse(data);
                 this.videoId = uploadResponse.id;
-                console.log('Upload complete!', this.videoId);
+                this.handleUploadCompleted(
+                    `Upload of ${
+                        this.state.title
+                    } is complete, you will be notified once Youtube processing is complete`,
+                    2000
+                );
                 this.pollForVideoStatus();
             }.bind(this),
         });
@@ -194,32 +213,33 @@ export default class UploadVideo extends Component {
         uploader.upload();
     };
 
-    getPlaylists = client => {
-        window.gapi.client
-            .init({
-                apiKey: 'AIzaSyBOLPQCxUlPZnxuHVo8NoQn5EjBwbRM5JQ',
-                discoveryDocs: [
-                    'https://www.googleapis.com/discovery/v1/apis/youtube/v3/rest',
-                ],
-                clientId:
-                    '814760909564-9f92v9uv678occ9n4raapgj34umeur89.apps.googleusercontent.com',
-                scope: 'profile https://www.googleapis.com/auth/youtube',
-            })
-            .then(() =>
-                window.gapi.client.youtube.playlists.list({
-                    part: 'snippet',
-                    maxResults: '25',
-                })
-            )
-            .then(response => console.log('response is: ', response));
+    delayClearModal = waitTime => {
+        this.setTimeout(() => {
+            this.setState(this.state, {
+                modalMessage: { $set: '' },
+                downloadProgress: { $set: 0 },
+            });
+        }, waitTime);
     };
 
+    handleModalMessage = (message, duration) => {
+        this.setState(
+            update(this.state, {
+                modalMessage: {
+                    $set: message,
+                },
+            })
+        );
+        this.delayClearModal(duration);
+    };
+
+    handleUploadCompleted = () => {};
+
     handleGoogleLoginSuccessResponse = response => {
-        window.gapi.load('client', this.getPlaylists);
+        window.gapi.load('client');
         this.setState({
             accessToken: response.accessToken,
         });
-        this.getPlaylists();
     };
 
     handleGoogleLoginFailureResponse = response => {
@@ -234,9 +254,55 @@ export default class UploadVideo extends Component {
         };
     };
 
-    render() {
-        const { title, description } = this.state;
+    renderModalContent = () => {
+        const {
+            title,
+            description,
+            modalMessage,
+            downloadProgress,
+        } = this.state;
 
+        console.log('modalMessage is: ', modalMessage);
+        console.log('downloadProgress is: ', downloadProgress);
+        if (modalMessage) {
+            return (
+                <div>
+                    <h2>{this.state.modalMessage}</h2>
+                </div>
+            );
+        } else if (downloadProgress && downloadProgress < 100) {
+            console.log('rendering ProgressBar');
+            return (
+                <div>
+                    <ProgressBar
+                        now={this.state.downloadProgress}
+                        label={`${this.state.downloadProgress}%`}
+                        animated
+                    />
+                </div>
+            );
+        } else {
+            return (
+                <form onSubmit={this.loadProgress}>
+                    <label>Video Title</label>
+                    <input
+                        autoFocus
+                        value={title}
+                        onChange={this.setInputState('title')}
+                    />
+                    <label>Description</label>
+                    <input
+                        autoFocus
+                        value={description}
+                        onChange={this.setInputState('description')}
+                    />
+                    <input type="submit" value="Upload" />
+                </form>
+            );
+        }
+    };
+
+    render() {
         return (
             <div>
                 {this.state.accessToken.length === 0 ? (
@@ -257,28 +323,14 @@ export default class UploadVideo extends Component {
                         scope="https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube"
                     />
                 ) : (
-                    <Button onClick={this.onPress}>Upload to Youtube</Button>
+                    <Button onClick={this.openModal}>Upload to Youtube</Button>
                 )}
                 <Modal
                     isOpen={this.state.modalIsOpen}
                     style={modalStyles}
                     contentLabel="Video Info"
                 >
-                    <form onSubmit={this.closeModal}>
-                        <label>Video Title</label>
-                        <input
-                            autoFocus
-                            value={title}
-                            onChange={this.setInputState('title')}
-                        />
-                        <label>Description</label>
-                        <input
-                            autoFocus
-                            value={description}
-                            onChange={this.setInputState('description')}
-                        />
-                        <input type="submit" value="Upload" />
-                    </form>
+                    {this.renderModalContent()}
                 </Modal>
             </div>
         );

@@ -7,11 +7,8 @@
     align-items: flex-end;
 }
 
-.playback-container {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-around;
-    align-items: flex-end;
+.with-margin-bottom {
+    margin-bottom: 10px;
 }
 
 .hide {
@@ -19,5 +16,5 @@
 }
 
 .play-window-input {
-    width: 30%;
+    flex: 1;
 }
