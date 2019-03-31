@@ -60,6 +60,7 @@ const styles = theme => ({
         display: 'none',
         [theme.breakpoints.up('md')]: {
             display: 'flex',
+            alignItems: 'center',
         },
     },
     sectionMobile: {
@@ -76,6 +77,16 @@ const styles = theme => ({
         alignItems: 'center',
         justifyContent: 'center',
         marginTop: 50,
+    },
+    modalErrorText: {
+        color: 'red',
+    },
+    modalText: {
+        marginTop: 20,
+        fontSize: 16,
+    },
+    progressBar: {
+        marginTop: 30,
     },
 });
 

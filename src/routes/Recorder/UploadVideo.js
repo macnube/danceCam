@@ -1,41 +1,42 @@
 import React, { Component } from 'react';
-import { Button, ProgressBar } from 'react-bootstrap';
-import Modal from 'react-modal';
+import PropTypes from 'prop-types';
+import classNames from 'classnames';
 import GoogleLogin from 'react-google-login';
 import MediaUploader from './GoogleMediaUploader';
 import update from 'immutability-helper';
-
-const modalStyles = {
-    content: {
-        top: '50%',
-        left: '50%',
-        right: 'auto',
-        bottom: 'auto',
-        marginRight: '-50%',
-        transform: 'translate(-50%, -50%)',
-    },
-};
+import { withStyles } from '@material-ui/core/styles';
+import UploadIcon from '@material-ui/icons/CloudUploadRounded';
+import IconButton from '@material-ui/core/IconButton';
+import Button from '@material-ui/core/Button';
+import TextField from '@material-ui/core/TextField';
+import Dialog from '@material-ui/core/Dialog';
+import DialogActions from '@material-ui/core/DialogActions';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogContentText from '@material-ui/core/DialogContentText';
+import DialogTitle from '@material-ui/core/DialogTitle';
+import LinearProgress from '@material-ui/core/LinearProgress';
+import styles from './styles';
+import AlertDialog from './AlertDialog';
 
 var STATUS_POLLING_INTERVAL_MILLIS = 60 * 1000; // One minute.;
 
-export default class UploadVideo extends Component {
-    constructor(props) {
-        super(props);
-        this.tags = ['youtube-cors-upload'];
-        this.categoryId = 22;
-        this.videoId = '';
-        this.uploadStartTime = 0;
-        this.title = '';
-        this.description = '';
-        this.state = {
-            accessToken: '',
-            modalIsOpen: false,
-            title: '',
-            description: '',
-            modalMessage: null,
-            downloadProgress: 0,
-        };
-    }
+class UploadVideo extends Component {
+    tags = ['youtube-cors-upload'];
+    categoryId = 22;
+    videoId = '';
+    uploadStartTime = 0;
+
+    state = {
+        accessToken: '',
+        modalIsOpen: false,
+        title: '',
+        description: '',
+        downloadProgress: 0,
+        modalMessage: '',
+        error: false,
+        alertTitle: null,
+        alertMessage: null,
+    };
 
     openModal = () => {
         this.setState({
@@ -43,23 +44,31 @@ export default class UploadVideo extends Component {
         });
     };
 
+    closeModal = () => {
+        this.setState({
+            modalIsOpen: false,
+        });
+    };
+
     loadProgress = event => {
         event.preventDefault();
+        const { title, description } = this.state;
 
-        if (!this.state.title) {
-            return this.setState({
-                modalMessage: 'Name your video',
-                downloadProgress: {
-                    $set: 0,
-                },
-            });
+        if (!title) {
+            return this.setState(
+                update(this.state, {
+                    modalMessage: { $set: 'Please name your video' },
+                    error: { $set: true },
+                })
+            );
         }
 
         this.setState(
             update(this.state, {
-                modalMessage: { $set: null },
-                title: { $set: this.state.title },
-                description: { $set: this.state.description },
+                modalMessage: { $set: '' },
+                error: { $set: false },
+                title: { $set: title },
+                description: { $set: description },
             })
         );
 
@@ -68,21 +77,6 @@ export default class UploadVideo extends Component {
         });
 
         this.uploadFile(blob);
-    };
-
-    closeModal = event => {
-        event.preventDefault();
-        setTimeout(1000, () => {
-            this.setState(
-                update(this.state, {
-                    modalMessage: { $set: null },
-                    modalIsOpen: { $set: false },
-                    downloadProgress: {
-                        $set: 0,
-                    },
-                })
-            );
-        });
     };
 
     pollForVideoStatus = () => {
@@ -117,31 +111,30 @@ export default class UploadVideo extends Component {
                             case 'processed':
                                 this.setState(
                                     update(this.state, {
-                                        modalMessage: {
+                                        alertTitle: {
                                             $set:
-                                                'Video successfully transcoded and available',
+                                                'Your video is now available!',
                                         },
-                                        downloadProgress: {
-                                            $set: 0,
+                                        alertMessage: {
+                                            $set:
+                                                'The video was successfully transcoded and is available in YouTube Studio for further editing',
                                         },
                                     })
                                 );
-                                this.closeModal();
                                 break;
                             // All other statuses indicate a permanent transcoding failure.
                             default:
                                 this.setState(
                                     update(this.state, {
-                                        modalMessage: {
-                                            $set:
-                                                'Unknown error during transcoding, please try again',
+                                        alertTitle: {
+                                            $set: 'Unknown Error',
                                         },
-                                        downloadProgress: {
-                                            $set: 0,
+                                        alertMessage: {
+                                            $set:
+                                                'An unknown error occurred during the transcoding process, please try again',
                                         },
                                     })
                                 );
-                                this.closeModal();
                                 break;
                         }
                     }
@@ -150,7 +143,7 @@ export default class UploadVideo extends Component {
     };
 
     uploadFile = file => {
-        const { title, description } = this.state;
+        const { title, description, accessToken } = this.state;
         const metadata = {
             snippet: {
                 title,
@@ -166,7 +159,7 @@ export default class UploadVideo extends Component {
         const uploader = new MediaUploader({
             baseUrl: 'https://www.googleapis.com/upload/youtube/v3/videos',
             file: file,
-            token: this.state.accessToken,
+            token: accessToken,
             metadata: metadata,
             params: {
                 part: Object.keys(metadata).join(','),
@@ -180,7 +173,7 @@ export default class UploadVideo extends Component {
                     var errorResponse = JSON.parse(data);
                     message = errorResponse.error.message;
                 } finally {
-                    alert(message);
+                    this.setModalError(message);
                 }
             }.bind(this),
             onProgress: function(data) {
@@ -213,40 +206,38 @@ export default class UploadVideo extends Component {
         uploader.upload();
     };
 
-    delayClearModal = waitTime => {
-        this.setTimeout(() => {
-            this.setState(this.state, {
-                modalMessage: { $set: '' },
-                downloadProgress: { $set: 0 },
-            });
-        }, waitTime);
-    };
-
-    handleModalMessage = (message, duration) => {
-        this.setState(
-            update(this.state, {
-                modalMessage: {
-                    $set: message,
-                },
-            })
+    handleUploadCompleted = () => {
+        this.setState({
+            modalMessage: `Upload of ${
+                this.state.title
+            } is complete, you will be notified once Youtube processing is complete`,
+        });
+        setTimeout(
+            () =>
+                this.setState({
+                    modalIsOpen: false,
+                }),
+            8000
         );
-        this.delayClearModal(duration);
     };
-
-    handleUploadCompleted = () => {};
 
     handleGoogleLoginSuccessResponse = response => {
         window.gapi.load('client');
         this.setState({
             accessToken: response.accessToken,
+            modalIsOpen: true,
         });
     };
 
-    handleGoogleLoginFailureResponse = response => {
-        console.log('google Failure response is: ', response);
+    handleGoogleLoginFailureResponse = () => {
+        this.setState({
+            alertTitle: 'Google Login Failure',
+            alertMessage:
+                'Something went wrong while logging into Google, please try again later',
+        });
     };
 
-    setInputState = name => {
+    handleChange = name => {
         return event => {
             this.setState({
                 [name]: event.target.value,
@@ -254,55 +245,109 @@ export default class UploadVideo extends Component {
         };
     };
 
-    renderModalContent = () => {
+    handleClearAlert = () => {
+        this.setState({
+            alertTitle: null,
+            alertMessage: null,
+        });
+    };
+
+    setModalError = message =>
+        this.setState({
+            modalMessage: message,
+            error: true,
+        });
+
+    handleModalCancel = () => {
+        this.setState({
+            modalIsOpen: false,
+            title: '',
+            description: '',
+            error: false,
+            modalMessage: '',
+        });
+    };
+
+    renderModal = () => {
+        const { classes } = this.props;
         const {
+            modalIsOpen,
             title,
             description,
-            modalMessage,
             downloadProgress,
+            modalMessage,
+            error,
         } = this.state;
+        return (
+            <Dialog
+                open={modalIsOpen}
+                onClose={this.handleClose}
+                aria-labelledby="form-dialog-title"
+            >
+                <DialogTitle id="form-dialog-title">
+                    Upload video to Youtube
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Please enter the title and description of the video that
+                        you want to upload to your YouTube account. It will
+                        automatically be uploaded with in a private state. You
+                        can edit it further through YouTube Studio
+                    </DialogContentText>
 
-        console.log('modalMessage is: ', modalMessage);
-        console.log('downloadProgress is: ', downloadProgress);
-        if (modalMessage) {
-            return (
-                <div>
-                    <h2>{this.state.modalMessage}</h2>
-                </div>
-            );
-        } else if (downloadProgress && downloadProgress < 100) {
-            console.log('rendering ProgressBar');
-            return (
-                <div>
-                    <ProgressBar
-                        now={this.state.downloadProgress}
-                        label={`${this.state.downloadProgress}%`}
-                        animated
-                    />
-                </div>
-            );
-        } else {
-            return (
-                <form onSubmit={this.loadProgress}>
-                    <label>Video Title</label>
-                    <input
-                        autoFocus
+                    {modalMessage ? (
+                        <DialogContentText
+                            className={classNames(
+                                classes.modalText,
+                                error && classes.modalErrorText
+                            )}
+                        >
+                            {modalMessage}
+                        </DialogContentText>
+                    ) : null}
+                    <TextField
+                        margin="dense"
+                        id="name"
+                        label="title"
+                        onChange={this.handleChange('title')}
                         value={title}
-                        onChange={this.setInputState('title')}
+                        fullWidth
                     />
-                    <label>Description</label>
-                    <input
-                        autoFocus
+                    <TextField
+                        margin="dense"
+                        id="name"
+                        label="description"
+                        onChange={this.handleChange('description')}
                         value={description}
-                        onChange={this.setInputState('description')}
+                        fullWidth
                     />
-                    <input type="submit" value="Upload" />
-                </form>
-            );
-        }
+                    {downloadProgress > 0 ? (
+                        <LinearProgress
+                            className={classes.progressBar}
+                            variant="determinate"
+                            value={downloadProgress}
+                        />
+                    ) : null}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={this.handleModalCancel} color="primary">
+                        Cancel
+                    </Button>
+                    <Button
+                        disabled={title.length === 0}
+                        onClick={this.loadProgress}
+                        color="primary"
+                    >
+                        Upload
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        );
     };
 
     render() {
+        const { blobs } = this.props;
+        const { alertTitle, alertMessage } = this.state;
         return (
             <div>
                 {this.state.accessToken.length === 0 ? (
@@ -310,12 +355,13 @@ export default class UploadVideo extends Component {
                         clientId="814760909564-9f92v9uv678occ9n4raapgj34umeur89.apps.googleusercontent.com"
                         buttonText="Login"
                         render={renderProps => (
-                            <Button
+                            <IconButton
                                 onClick={renderProps.onClick}
-                                disabled={this.props.blobs.length === 0}
+                                disabled={blobs.length === 0}
+                                color="inherit"
                             >
-                                Login to upload to Youtube
-                            </Button>
+                                <UploadIcon />
+                            </IconButton>
                         )}
                         onSuccess={this.handleGoogleLoginSuccessResponse}
                         onFailure={this.handleGoogleLoginFailureResponse}
@@ -323,16 +369,28 @@ export default class UploadVideo extends Component {
                         scope="https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube"
                     />
                 ) : (
-                    <Button onClick={this.openModal}>Upload to Youtube</Button>
+                    <IconButton
+                        onClick={this.openModal}
+                        disabled={blobs.length === 0}
+                        color="inherit"
+                    >
+                        <UploadIcon />
+                    </IconButton>
                 )}
-                <Modal
-                    isOpen={this.state.modalIsOpen}
-                    style={modalStyles}
-                    contentLabel="Video Info"
-                >
-                    {this.renderModalContent()}
-                </Modal>
+                {this.renderModal()}
+                <AlertDialog
+                    handleOnClose={this.handleClearAlert}
+                    title={alertTitle}
+                    message={alertMessage}
+                />
             </div>
         );
     }
 }
+
+UploadVideo.propTypes = {
+    blobs: PropTypes.array.isRequired,
+    classes: PropTypes.object.isRequired,
+};
+
+export default withStyles(styles)(UploadVideo);

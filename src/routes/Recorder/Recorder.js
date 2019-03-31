@@ -4,6 +4,7 @@ import Webcam from 'react-webcam';
 import { Player, ControlBar, PlaybackRateMenuButton } from 'video-react';
 import compose from 'recompose/compose';
 import UploadVideo from './UploadVideo';
+import AlertDialog from './AlertDialog';
 import 'video-react/dist/video-react.css';
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
@@ -12,7 +13,6 @@ import Typography from '@material-ui/core/Typography';
 import InputBase from '@material-ui/core/InputBase';
 import MenuItem from '@material-ui/core/MenuItem';
 import Menu from '@material-ui/core/Menu';
-
 import { withStyles } from '@material-ui/core/styles';
 import withWidth from '@material-ui/core/withWidth';
 import MenuIcon from '@material-ui/icons/Menu';
@@ -20,7 +20,6 @@ import TimerIcon from '@material-ui/icons/TimerRounded';
 import AccountCircle from '@material-ui/icons/AccountCircle';
 import RecordIcon from '@material-ui/icons/FiberManualRecordRounded';
 import DownloadIcon from '@material-ui/icons/CloudDownloadRounded';
-import UploadIcon from '@material-ui/icons/CloudUploadRounded';
 import SwitchIcon from '@material-ui/icons/SwitchVideoRounded';
 import MoreIcon from '@material-ui/icons/MoreVert';
 import styles from './styles';
@@ -40,6 +39,8 @@ class Recorder extends Component {
         loadedSegment: 1,
         segmentOneUrl: null,
         segmentTwoUrl: null,
+        alertTitle: null,
+        alertMessage: null,
     };
 
     setRef = webcam => {
@@ -72,7 +73,21 @@ class Recorder extends Component {
         this.state.isRecording ? this.stopRecording() : this.startRecording();
     };
 
+    handleClearAlert = () => {
+        this.setState({
+            alertTitle: null,
+            alertMessage: null,
+        });
+    };
+
     startRecording = () => {
+        if (!this.state.playWindow) {
+            return this.setState({
+                alertTitle: 'Enter Recording Length',
+                alertMessage:
+                    'This is the amount of time your webcam will record before starting a new recording. You will always have access to the current recording and the previous one via the Switch button.',
+            });
+        }
         if (!this.webcam.stream) {
             console.log('Big problems!');
             return null;
@@ -182,7 +197,6 @@ class Recorder extends Component {
         const { loadedSegment, segmentOneUrl, segmentTwoUrl } = this.state;
         const { classes } = this.props;
         const { width, height } = this.getVideoSize();
-        console.log('width is: ', width);
         return (
             <div className={classes.videoContainer}>
                 <Player
@@ -250,7 +264,12 @@ class Recorder extends Component {
     };
 
     render() {
-        const { anchorEl, mobileMoreAnchorEl, isRecording } = this.state;
+        const {
+            mobileMoreAnchorEl,
+            isRecording,
+            alertTitle,
+            alertMessage,
+        } = this.state;
         const { classes } = this.props;
         const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
         const { width, height } = this.getVideoSize();
@@ -307,21 +326,21 @@ class Recorder extends Component {
                         >
                             Swing Dance Practice Partner
                         </Typography>
-                        <div className={classes.timer}>
-                            <div className={classes.timerIcon}>
-                                <TimerIcon />
-                            </div>
-                            <InputBase
-                                onChange={this.onPlayWindowChage}
-                                placeholder="Seconds"
-                                classes={{
-                                    root: classes.inputRoot,
-                                    input: classes.inputInput,
-                                }}
-                            />
-                        </div>
                         <div className={classes.grow} />
                         <div className={classes.sectionDesktop}>
+                            <div className={classes.timer}>
+                                <div className={classes.timerIcon}>
+                                    <TimerIcon />
+                                </div>
+                                <InputBase
+                                    onChange={this.onPlayWindowChage}
+                                    placeholder="Seconds"
+                                    classes={{
+                                        root: classes.inputRoot,
+                                        input: classes.inputInput,
+                                    }}
+                                />
+                            </div>
                             <IconButton
                                 onClick={this.handleRecordToggle}
                                 color={isRecording ? 'secondary' : 'inherit'}
@@ -347,9 +366,13 @@ class Recorder extends Component {
                             >
                                 <DownloadIcon />
                             </IconButton>
-                            <IconButton color="inherit">
-                                <UploadIcon />
-                            </IconButton>
+                            <UploadVideo
+                                blobs={
+                                    this.state.loadedSegment === 1
+                                        ? this.currentBlobs
+                                        : this.lastBlobs
+                                }
+                            />
                         </div>
                         <div className={classes.sectionMobile}>
                             <IconButton
@@ -385,6 +408,11 @@ class Recorder extends Component {
                     />
                 </div>
                 {this.shouldHideWebcam() ? this.renderPlayback() : null}
+                <AlertDialog
+                    handleOnClose={this.handleClearAlert}
+                    title={alertTitle}
+                    message={alertMessage}
+                />
             </div>
         );
     }
