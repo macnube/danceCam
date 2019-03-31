@@ -1,21 +1,18 @@
-import React, { Component } from 'react';
+import React, { Component, Fragment } from 'react';
 import PropTypes from 'prop-types';
 import Webcam from 'react-webcam';
 import { Player, ControlBar, PlaybackRateMenuButton } from 'video-react';
 import compose from 'recompose/compose';
 import UploadVideo from './UploadVideo';
 import AlertDialog from './AlertDialog';
+import AppBar from '../../components/AppBar';
 import 'video-react/dist/video-react.css';
-import AppBar from '@material-ui/core/AppBar';
-import Toolbar from '@material-ui/core/Toolbar';
 import IconButton from '@material-ui/core/IconButton';
-import Typography from '@material-ui/core/Typography';
 import InputBase from '@material-ui/core/InputBase';
 import MenuItem from '@material-ui/core/MenuItem';
 import Menu from '@material-ui/core/Menu';
 import { withStyles } from '@material-ui/core/styles';
 import withWidth from '@material-ui/core/withWidth';
-import MenuIcon from '@material-ui/icons/Menu';
 import TimerIcon from '@material-ui/icons/TimerRounded';
 import AccountCircle from '@material-ui/icons/AccountCircle';
 import RecordIcon from '@material-ui/icons/FiberManualRecordRounded';
@@ -23,7 +20,6 @@ import DownloadIcon from '@material-ui/icons/CloudDownloadRounded';
 import SwitchIcon from '@material-ui/icons/SwitchVideoRounded';
 import MoreIcon from '@material-ui/icons/MoreVert';
 import styles from './styles';
-import './Recorder.css';
 
 class Recorder extends Component {
     webcam = null;
@@ -263,135 +259,121 @@ class Recorder extends Component {
         return { width: 1280, height: 720 };
     };
 
-    render() {
-        const {
-            mobileMoreAnchorEl,
-            isRecording,
-            alertTitle,
-            alertMessage,
-        } = this.state;
+    renderDesktop = () => {
+        const { isRecording } = this.state;
         const { classes } = this.props;
-        const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
-        const { width, height } = this.getVideoSize();
-
-        const renderMobileMenu = (
-            <Menu
-                anchorEl={mobileMoreAnchorEl}
-                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                open={isMobileMenuOpen}
-                onClose={this.handleMenuClose}
-            >
-                <MenuItem onClick={this.handleMobileMenuClose}>
-                    <IconButton
-                        onClick={this.handleSegmentToggle}
-                        color="inherit"
-                        disabled={this.lastBlobs.length === 0 || isRecording}
-                    >
-                        <SwitchIcon />
-                    </IconButton>
-                    <p>Switch Segments</p>
-                </MenuItem>
-                <MenuItem onClick={this.handleMobileMenuClose}>
-                    <IconButton color="inherit">
-                        <DownloadIcon />
-                    </IconButton>
-                    <p>Notifications</p>
-                </MenuItem>
-                <MenuItem onClick={this.handleProfileMenuOpen}>
-                    <IconButton color="inherit">
-                        <AccountCircle />
-                    </IconButton>
-                    <p>Profile</p>
-                </MenuItem>
-            </Menu>
+        return (
+            <Fragment>
+                <div className={classes.timer}>
+                    <div className={classes.timerIcon}>
+                        <TimerIcon />
+                    </div>
+                    <InputBase
+                        onChange={this.onPlayWindowChage}
+                        placeholder="Seconds"
+                        classes={{
+                            root: classes.inputRoot,
+                            input: classes.inputInput,
+                        }}
+                    />
+                </div>
+                <IconButton
+                    onClick={this.handleRecordToggle}
+                    color={isRecording ? 'secondary' : 'inherit'}
+                >
+                    <RecordIcon />
+                </IconButton>
+                <IconButton
+                    onClick={this.handleSegmentToggle}
+                    color="inherit"
+                    disabled={this.lastBlobs.length === 0 || isRecording}
+                >
+                    <SwitchIcon />
+                </IconButton>
+                <IconButton
+                    onClick={this.handleDownload}
+                    color="inherit"
+                    disabled={this.currentBlobs.length === 0 || isRecording}
+                >
+                    <DownloadIcon />
+                </IconButton>
+                <UploadVideo
+                    blobs={
+                        this.state.loadedSegment === 1
+                            ? this.currentBlobs
+                            : this.lastBlobs
+                    }
+                />
+            </Fragment>
         );
+    };
+
+    renderMobile = () => {
+        const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
+        const { mobileMoreAnchorEl, isRecording } = this.state;
+        return (
+            <Fragment>
+                <IconButton
+                    onClick={this.handleRecordToggle}
+                    color={isRecording ? 'secondary' : 'inherit'}
+                >
+                    <RecordIcon />
+                </IconButton>
+                <IconButton
+                    aria-haspopup="true"
+                    onClick={this.handleMobileMenuOpen}
+                    color="inherit"
+                >
+                    <MoreIcon />
+                </IconButton>
+                <Menu
+                    anchorEl={mobileMoreAnchorEl}
+                    anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    open={isMobileMenuOpen}
+                    onClose={this.handleMenuClose}
+                >
+                    <MenuItem onClick={this.handleMobileMenuClose}>
+                        <IconButton
+                            onClick={this.handleSegmentToggle}
+                            color="inherit"
+                            disabled={
+                                this.lastBlobs.length === 0 || isRecording
+                            }
+                        >
+                            <SwitchIcon />
+                        </IconButton>
+                        <p>Switch Segments</p>
+                    </MenuItem>
+                    <MenuItem onClick={this.handleMobileMenuClose}>
+                        <IconButton color="inherit">
+                            <DownloadIcon />
+                        </IconButton>
+                        <p>Notifications</p>
+                    </MenuItem>
+                    <MenuItem onClick={this.handleProfileMenuOpen}>
+                        <IconButton color="inherit">
+                            <AccountCircle />
+                        </IconButton>
+                        <p>Profile</p>
+                    </MenuItem>
+                </Menu>
+            </Fragment>
+        );
+    };
+
+    render() {
+        const { alertTitle, alertMessage } = this.state;
+        const { classes } = this.props;
+
+        const { width, height } = this.getVideoSize();
 
         return (
             <div className={classes.root}>
-                <AppBar position="static">
-                    <Toolbar>
-                        <IconButton
-                            className={classes.menuButton}
-                            color="inherit"
-                            aria-label="Open drawer"
-                        >
-                            <MenuIcon />
-                        </IconButton>
-                        <Typography
-                            className={classes.title}
-                            variant="h6"
-                            color="inherit"
-                            noWrap
-                        >
-                            Swing Dance Practice Partner
-                        </Typography>
-                        <div className={classes.grow} />
-                        <div className={classes.sectionDesktop}>
-                            <div className={classes.timer}>
-                                <div className={classes.timerIcon}>
-                                    <TimerIcon />
-                                </div>
-                                <InputBase
-                                    onChange={this.onPlayWindowChage}
-                                    placeholder="Seconds"
-                                    classes={{
-                                        root: classes.inputRoot,
-                                        input: classes.inputInput,
-                                    }}
-                                />
-                            </div>
-                            <IconButton
-                                onClick={this.handleRecordToggle}
-                                color={isRecording ? 'secondary' : 'inherit'}
-                            >
-                                <RecordIcon />
-                            </IconButton>
-                            <IconButton
-                                onClick={this.handleSegmentToggle}
-                                color="inherit"
-                                disabled={
-                                    this.lastBlobs.length === 0 || isRecording
-                                }
-                            >
-                                <SwitchIcon />
-                            </IconButton>
-                            <IconButton
-                                onClick={this.handleDownload}
-                                color="inherit"
-                                disabled={
-                                    this.currentBlobs.length === 0 ||
-                                    isRecording
-                                }
-                            >
-                                <DownloadIcon />
-                            </IconButton>
-                            <UploadVideo
-                                blobs={
-                                    this.state.loadedSegment === 1
-                                        ? this.currentBlobs
-                                        : this.lastBlobs
-                                }
-                            />
-                        </div>
-                        <div className={classes.sectionMobile}>
-                            <IconButton
-                                onClick={this.handleRecordToggle}
-                                color={isRecording ? 'secondary' : 'inherit'}
-                            >
-                                <RecordIcon />
-                            </IconButton>
-                            <IconButton
-                                aria-haspopup="true"
-                                onClick={this.handleMobileMenuOpen}
-                                color="inherit"
-                            >
-                                <MoreIcon />
-                            </IconButton>
-                        </div>
-                    </Toolbar>
-                </AppBar>
-                {renderMobileMenu}
+                <AppBar
+                    renderDesktop={this.renderDesktop}
+                    renderMobile={this.renderMobile}
+                />
                 <div
                     className={
                         this.shouldHideWebcam()
